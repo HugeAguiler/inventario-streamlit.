@@ -338,7 +338,7 @@
     {
       "cell_type": "code",
       "source": [
-        "!pip install gspread pandas gspread-dataframe openpyxl matplotlib\n",
+       
         "\n"
       ],
       "metadata": {
