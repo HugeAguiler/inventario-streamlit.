@@ -221,7 +221,7 @@ st.write("Bienvenido a la aplicación.")
 # st.write("¡Hola! Este es un ejemplo básico de Streamlit.")
 #
 
-!pip install --upgrade pyngrok
+
 
 !streamlit run app.py & ./cloudflared tunnel --url http://localhost:8501
 
