@@ -1,0 +1,687 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyMetqNa5m1yVOsGuW57RG3r",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/HugeAguiler/inventario-streamlit./blob/main/app-py\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile app.py\n",
+        "import streamlit as st\n",
+        "import gspread\n",
+        "import pandas as pd\n",
+        "from google.colab import auth\n",
+        "from google.auth import default\n",
+        "\n",
+        "# Autenticación\n",
+        "auth.authenticate_user()\n",
+        "creds, _ = default()\n",
+        "gc = gspread.authorize(creds)\n",
+        "\n",
+        "# Carga de datos desde Google Sheets\n",
+        "sheet_url = \"https://docs.google.com/spreadsheets/d/1DXNDdLWuNEVfykJeO9NkNzn6JFBkfrc0u4YTLNh3xP8/edit\"\n",
+        "worksheet_name = \"INVENTARIO-VENTASXMES\"\n",
+        "st.title(\"Sistema de Inventario\")\n",
+        "st.write(\"Cargando datos...\")\n",
+        "\n",
+        "spreadsheet = gc.open_by_url(sheet_url)\n",
+        "worksheet = spreadsheet.worksheet(worksheet_name)\n",
+        "data = worksheet.get_all_records()\n",
+        "df = pd.DataFrame(data)\n",
+        "\n",
+        "st.write(\"Datos cargados:\")\n",
+        "st.dataframe(df)\n",
+        "\n",
+        "# Agregar análisis o gráficos\n",
+        "st.write(\"Resumen de productos a pedir:\")\n",
+        "df['Pedido recomendado'] = (df['Inventario minimo'] + df['inventario de seguridad'] - df['Existencia']).clip(lower=0)\n",
+        "resumen = df[df['Pedido recomendado'] > 0]\n",
+        "st.dataframe(resumen)\n"
+      ],
+      "metadata": {
+        "id": "GVSuw0V-qjKm"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Instalación de las bibliotecas necesarias\n",
+        "!pip install gspread pandas gspread-dataframe openpyxl matplotlib\n",
+        "\n",
+        "import gspread\n",
+        "from google.colab import auth\n",
+        "from google.auth import default\n",
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt\n",
+        "from google.colab import files\n",
+        "\n",
+        "# ==========================\n",
+        "# 🔐 AUTENTICACIÓN CON GOOGLE\n",
+        "# ==========================\n",
+        "print(\"\\n🔐 Autenticando con Google...\")\n",
+        "auth.authenticate_user()\n",
+        "creds, _ = default()\n",
+        "gc = gspread.authorize(creds)\n",
+        "print(\"✅ Autenticación exitosa.\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 📂 CONECTAR A GOOGLE SHEETS\n",
+        "# ==========================\n",
+        "sheet_url = \"https://docs.google.com/spreadsheets/d/1DXNDdLWuNEVfykJeO9NkNzn6JFBkfrc0u4YTLNh3xP8/edit\"\n",
+        "print(f\"\\n📂 Conectando a la hoja de cálculo:\\n{sheet_url}\")\n",
+        "spreadsheet = gc.open_by_url(sheet_url)\n",
+        "\n",
+        "# ==========================\n",
+        "# 📑 SELECCIONAR LA HOJA PRINCIPAL\n",
+        "# ==========================\n",
+        "worksheet_name = \"INVENTARIO-VENTASXMES\"\n",
+        "print(f\"📑 Seleccionando la hoja: '{worksheet_name}'\")\n",
+        "worksheet = spreadsheet.worksheet(worksheet_name)\n",
+        "\n",
+        "# ==========================\n",
+        "# 📊 CARGAR LOS DATOS EN UN DATAFRAME\n",
+        "# ==========================\n",
+        "print(\"\\n📊 Cargando datos...\")\n",
+        "data = worksheet.get_all_records()\n",
+        "df = pd.DataFrame(data)\n",
+        "\n",
+        "# Verificar las columnas disponibles\n",
+        "print(\"\\n📝 Encabezados disponibles en la hoja:\")\n",
+        "print(df.columns.tolist())\n",
+        "\n",
+        "# ==========================\n",
+        "# 🔍 VERIFICACIÓN DE COLUMNAS\n",
+        "# ==========================\n",
+        "necesarias = ['Nombre', 'Existencia', 'Inventario minimo', 'inventario de seguridad']  # Nombres exactos del archivo\n",
+        "opcional = 'Vendido'  # Columna opcional para el gráfico de ventas\n",
+        "disponibles = df.columns.tolist()\n",
+        "\n",
+        "faltantes = [col for col in necesarias if col not in disponibles]\n",
+        "if faltantes:\n",
+        "    print(f\"\\n⚠️ Error: Las siguientes columnas necesarias no están en la hoja: {faltantes}\")\n",
+        "    print(f\"📌 Columnas disponibles: {disponibles}\")\n",
+        "    raise KeyError(\"Columnas faltantes en el archivo\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 🔧 LIMPIEZA DE DATOS\n",
+        "# ==========================\n",
+        "print(\"\\n🔧 Limpiando datos...\")\n",
+        "columnas_numericas = ['Existencia', 'Inventario minimo', 'inventario de seguridad']\n",
+        "\n",
+        "for columna in columnas_numericas:\n",
+        "    df[columna] = (\n",
+        "        df[columna]\n",
+        "        .replace({',': '', '\\.': ''}, regex=True)  # Eliminar separadores de miles\n",
+        "        .astype(str)  # Asegurarse de que todo sea texto antes de convertir\n",
+        "        .str.replace(' ', '')  # Eliminar espacios\n",
+        "    )\n",
+        "    df[columna] = pd.to_numeric(df[columna], errors='coerce').fillna(0)  # Convertir a número\n",
+        "\n",
+        "# Calcular el pedido recomendado\n",
+        "df['Pedido recomendado'] = (df['Inventario minimo'] + df['inventario de seguridad'] - df['Existencia']).clip(lower=0)\n",
+        "\n",
+        "if opcional in disponibles:\n",
+        "    df[opcional] = pd.to_numeric(df[opcional], errors='coerce').fillna(0)\n",
+        "\n",
+        "print(\"✅ Datos preparados correctamente.\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 📄 FUNCIÓN: RESUMEN DE PRODUCTOS A PEDIR\n",
+        "# ==========================\n",
+        "def generar_resumen():\n",
+        "    print(\"\\n🔎 Generando resumen de productos a pedir...\")\n",
+        "    try:\n",
+        "        productos_a_pedir = df[df['Pedido recomendado'] > 0]\n",
+        "\n",
+        "        if not productos_a_pedir.empty:\n",
+        "            print(\"\\n📋 Resumen de productos a pedir:\")\n",
+        "            print(productos_a_pedir[['Nombre', 'Existencia', 'Inventario minimo', 'inventario de seguridad', 'Pedido recomendado']])\n",
+        "\n",
+        "            file_name = \"Resumen_Productos_Pedir.xlsx\"\n",
+        "            productos_a_pedir.to_excel(file_name, index=False, engine='openpyxl')\n",
+        "            print(f\"\\n✅ Resumen guardado como: {file_name}\")\n",
+        "            files.download(file_name)\n",
+        "        else:\n",
+        "            print(\"\\n⚠️ No hay productos que necesiten ser pedidos.\")\n",
+        "    except Exception as e:\n",
+        "        print(f\"❌ Error al generar el resumen: {e}\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 📈 FUNCIÓN: GRÁFICO DE PRODUCTOS MÁS VENDIDOS\n",
+        "# ==========================\n",
+        "def generar_grafico_ventas():\n",
+        "    if opcional not in disponibles:\n",
+        "        print(\"\\n⚠️ La columna 'Vendido' no está disponible. No se puede generar el gráfico.\")\n",
+        "        return\n",
+        "\n",
+        "    print(\"\\n📊 Generando gráfico de productos más vendidos...\")\n",
+        "    try:\n",
+        "        productos_mas_vendidos = df.sort_values(by=opcional, ascending=False).head(10)\n",
+        "\n",
+        "        plt.figure(figsize=(10, 6))\n",
+        "        plt.barh(productos_mas_vendidos['Nombre'], productos_mas_vendidos[opcional], color='green')\n",
+        "        plt.xlabel(\"Cantidad Vendida\")\n",
+        "        plt.ylabel(\"Producto\")\n",
+        "        plt.title(\"Top 10 Productos Más Vendidos\")\n",
+        "        plt.gca().invert_yaxis()\n",
+        "        plt.tight_layout()\n",
+        "\n",
+        "        grafico_file = \"Grafico_Top10_Ventas.png\"\n",
+        "        plt.savefig(grafico_file)\n",
+        "        plt.show()\n",
+        "        print(f\"\\n✅ Gráfico guardado como: {grafico_file}\")\n",
+        "        files.download(grafico_file)\n",
+        "    except Exception as e:\n",
+        "        print(f\"❌ Error al generar el gráfico: {e}\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 📌 MENÚ PRINCIPAL\n",
+        "# ==========================\n",
+        "def menu():\n",
+        "    while True:\n",
+        "        print(\"\\n📌 MENÚ PRINCIPAL:\")\n",
+        "        print(\"1️⃣ Generar resumen de productos a pedir\")\n",
+        "        print(\"2️⃣ Generar gráfico de productos más vendidos\")\n",
+        "        print(\"3️⃣ Salir\")\n",
+        "        opcion = input(\"👉 Selecciona una opción (1, 2 o 3): \").strip()\n",
+        "\n",
+        "        if opcion == \"1\":\n",
+        "            generar_resumen()\n",
+        "        elif opcion == \"2\":\n",
+        "            generar_grafico_ventas()\n",
+        "        elif opcion == \"3\":\n",
+        "            print(\"\\n👋 Programa terminado. ¡Hasta luego!\")\n",
+        "            break\n",
+        "        else:\n",
+        "            print(\"⚠️ Opción no válida. Intenta nuevamente.\")\n",
+        "\n",
+        "# ==========================\n",
+        "# 🚀 EJECUTAR EL MENÚ\n",
+        "# ==========================\n",
+        "menu()\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n",
+        "\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000
+        },
+        "id": "3zzbaxVyzCci",
+        "outputId": "be49d024-ee6a-47f2-ce11-819a19daa205"
+      },
+      "execution_count": 11,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Requirement already satisfied: gspread in /usr/local/lib/python3.10/dist-packages (6.0.2)\n",
+            "Requirement already satisfied: pandas in /usr/local/lib/python3.10/dist-packages (2.2.2)\n",
+            "Requirement already satisfied: gspread-dataframe in /usr/local/lib/python3.10/dist-packages (3.3.1)\n",
+            "Requirement already satisfied: openpyxl in /usr/local/lib/python3.10/dist-packages (3.1.5)\n",
+            "Requirement already satisfied: matplotlib in /usr/local/lib/python3.10/dist-packages (3.8.0)\n",
+            "Requirement already satisfied: google-auth>=1.12.0 in /usr/local/lib/python3.10/dist-packages (from gspread) (2.27.0)\n",
+            "Requirement already satisfied: google-auth-oauthlib>=0.4.1 in /usr/local/lib/python3.10/dist-packages (from gspread) (1.2.1)\n",
+            "Requirement already satisfied: StrEnum==0.4.15 in /usr/local/lib/python3.10/dist-packages (from gspread) (0.4.15)\n",
+            "Requirement already satisfied: numpy>=1.22.4 in /usr/local/lib/python3.10/dist-packages (from pandas) (1.26.4)\n",
+            "Requirement already satisfied: python-dateutil>=2.8.2 in /usr/local/lib/python3.10/dist-packages (from pandas) (2.8.2)\n",
+            "Requirement already satisfied: pytz>=2020.1 in /usr/local/lib/python3.10/dist-packages (from pandas) (2024.2)\n",
+            "Requirement already satisfied: tzdata>=2022.7 in /usr/local/lib/python3.10/dist-packages (from pandas) (2024.2)\n",
+            "Requirement already satisfied: six>=1.12.0 in /usr/local/lib/python3.10/dist-packages (from gspread-dataframe) (1.16.0)\n",
+            "Requirement already satisfied: et-xmlfile in /usr/local/lib/python3.10/dist-packages (from openpyxl) (2.0.0)\n",
+            "Requirement already satisfied: contourpy>=1.0.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (1.3.1)\n",
+            "Requirement already satisfied: cycler>=0.10 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (0.12.1)\n",
+            "Requirement already satisfied: fonttools>=4.22.0 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (4.55.0)\n",
+            "Requirement already satisfied: kiwisolver>=1.0.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (1.4.7)\n",
+            "Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (24.2)\n",
+            "Requirement already satisfied: pillow>=6.2.0 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (11.0.0)\n",
+            "Requirement already satisfied: pyparsing>=2.3.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (3.2.0)\n",
+            "Requirement already satisfied: cachetools<6.0,>=2.0.0 in /usr/local/lib/python3.10/dist-packages (from google-auth>=1.12.0->gspread) (5.5.0)\n",
+            "Requirement already satisfied: pyasn1-modules>=0.2.1 in /usr/local/lib/python3.10/dist-packages (from google-auth>=1.12.0->gspread) (0.4.1)\n",
+            "Requirement already satisfied: rsa<5,>=3.1.4 in /usr/local/lib/python3.10/dist-packages (from google-auth>=1.12.0->gspread) (4.9)\n",
+            "Requirement already satisfied: requests-oauthlib>=0.7.0 in /usr/local/lib/python3.10/dist-packages (from google-auth-oauthlib>=0.4.1->gspread) (1.3.1)\n",
+            "Requirement already satisfied: pyasn1<0.7.0,>=0.4.6 in /usr/local/lib/python3.10/dist-packages (from pyasn1-modules>=0.2.1->google-auth>=1.12.0->gspread) (0.6.1)\n",
+            "Requirement already satisfied: oauthlib>=3.0.0 in /usr/local/lib/python3.10/dist-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (3.2.2)\n",
+            "Requirement already satisfied: requests>=2.0.0 in /usr/local/lib/python3.10/dist-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (2.32.3)\n",
+            "Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.10/dist-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (3.4.0)\n",
+            "Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/dist-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (3.10)\n",
+            "Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.10/dist-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (2.2.3)\n",
+            "Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.10/dist-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (2024.8.30)\n",
+            "\n",
+            "🔐 Autenticando con Google...\n",
+            "✅ Autenticación exitosa.\n",
+            "\n",
+            "📂 Conectando a la hoja de cálculo:\n",
+            "https://docs.google.com/spreadsheets/d/1DXNDdLWuNEVfykJeO9NkNzn6JFBkfrc0u4YTLNh3xP8/edit\n",
+            "📑 Seleccionando la hoja: 'INVENTARIO-VENTASXMES'\n",
+            "\n",
+            "📊 Cargando datos...\n",
+            "\n",
+            "📝 Encabezados disponibles en la hoja:\n",
+            "['Nombre', 'Responsable', 'Precio de venta', 'Coste', 'Existencia', 'inventario de seguridad', 'Inventario minimo', 'Inventario minimo + stock de seguridad', 'Pedido recomendado', 'Categoría de producto', 'ESTADOS UNIDOS/MEXICO', 'TIEMPO DE ENVIO (DIAS)', 'Tipo de producto', 'Cantidad pronosticada', 'Unidad de medida', 'Decoración de Actividad  de Excepción', 'Promedio de ventas mensuales', 'Vendido', 'Oct-23', 'Nov-23', 'Dec-23', 'Jan-24', 'Feb-24', 'Mar-24', 'Apr-24', 'May-24', 'Jun-24', 'Jul-24', 'Aug-24', 'Sep-24', 'Oct-24', 'Nov-24', 'Dec-24', 'Jan-25', 'Feb-25', 'Mar-25', 'Apr-25', 'May-25', 'Jun-25', 'Jul-25', 'Aug-25', 'Sep-25', 'Oct-25', 'Nov-25', 'Dec-25', 'Jan-26', 'Feb-26', 'Mar-26', 'Apr-26', 'May-26', 'Jun-26', 'Jul-26', 'Aug-26', 'Sep-26', 'Oct-26', 'Nov-26', 'Dec-26']\n",
+            "\n",
+            "🔧 Limpiando datos...\n",
+            "✅ Datos preparados correctamente.\n",
+            "\n",
+            "📌 MENÚ PRINCIPAL:\n",
+            "1️⃣ Generar resumen de productos a pedir\n",
+            "2️⃣ Generar gráfico de productos más vendidos\n",
+            "3️⃣ Salir\n"
+          ]
+        },
+        {
+          "output_type": "error",
+          "ename": "KeyboardInterrupt",
+          "evalue": "Interrupted by user",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mKeyboardInterrupt\u001b[0m                         Traceback (most recent call last)",
+            "\u001b[0;32m<ipython-input-11-a2ef43dfaf42>\u001b[0m in \u001b[0;36m<cell line: 154>\u001b[0;34m()\u001b[0m\n\u001b[1;32m    152\u001b[0m \u001b[0;31m# 🚀 EJECUTAR EL MENÚ\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    153\u001b[0m \u001b[0;31m# ==========================\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 154\u001b[0;31m \u001b[0mmenu\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    155\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    156\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;32m<ipython-input-11-a2ef43dfaf42>\u001b[0m in \u001b[0;36mmenu\u001b[0;34m()\u001b[0m\n\u001b[1;32m    137\u001b[0m         \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"2️⃣ Generar gráfico de productos más vendidos\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    138\u001b[0m         \u001b[0mprint\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"3️⃣ Salir\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 139\u001b[0;31m         \u001b[0mopcion\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0minput\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"👉 Selecciona una opción (1, 2 o 3): \"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mstrip\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    140\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    141\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mopcion\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m\"1\"\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/ipykernel/kernelbase.py\u001b[0m in \u001b[0;36mraw_input\u001b[0;34m(self, prompt)\u001b[0m\n\u001b[1;32m    849\u001b[0m                 \u001b[0;34m\"raw_input was called, but this frontend does not support input requests.\"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    850\u001b[0m             )\n\u001b[0;32m--> 851\u001b[0;31m         return self._input_request(str(prompt),\n\u001b[0m\u001b[1;32m    852\u001b[0m             \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_parent_ident\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    853\u001b[0m             \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_parent_header\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;32m/usr/local/lib/python3.10/dist-packages/ipykernel/kernelbase.py\u001b[0m in \u001b[0;36m_input_request\u001b[0;34m(self, prompt, ident, parent, password)\u001b[0m\n\u001b[1;32m    893\u001b[0m             \u001b[0;32mexcept\u001b[0m \u001b[0mKeyboardInterrupt\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    894\u001b[0m                 \u001b[0;31m# re-raise KeyboardInterrupt, to truncate traceback\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 895\u001b[0;31m                 \u001b[0;32mraise\u001b[0m \u001b[0mKeyboardInterrupt\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"Interrupted by user\"\u001b[0m\u001b[0;34m)\u001b[0m \u001b[0;32mfrom\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    896\u001b[0m             \u001b[0;32mexcept\u001b[0m \u001b[0mException\u001b[0m \u001b[0;32mas\u001b[0m \u001b[0me\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    897\u001b[0m                 \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mlog\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mwarning\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"Invalid Message:\"\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mexc_info\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mTrue\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mKeyboardInterrupt\u001b[0m: Interrupted by user"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "columnas_numericas = ['Existencia', 'Inventario minimo', 'inventario de seguridad']\n",
+        "\n",
+        "for columna in columnas_numericas:\n",
+        "    df[columna] = (\n",
+        "        df[columna]\n",
+        "        .replace({',': '', '\\.': ''}, regex=True)  # Eliminar separadores de miles\n",
+        "        .astype(str)  # Asegurarse de que todo sea texto antes de convertir\n",
+        "        .str.replace(' ', '')  # Eliminar espacios\n",
+        "    )\n",
+        "    df[columna] = pd.to_numeric(df[columna], errors='coerce').fillna(0)  # Convertir a número\n"
+      ],
+      "metadata": {
+        "id": "RUGEhLrTDQpG"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install gspread pandas gspread-dataframe openpyxl matplotlib\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "baMgdWpT593r"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install streamlit pyngrok\n"
+      ],
+      "metadata": {
+        "id": "v5dr7f9tqX3Q"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "%%writefile app.py\n",
+        "import streamlit as st\n",
+        "st.title(\"Mi Aplicación de Inventario\")\n",
+        "st.write(\"¡Hola! Este es un ejemplo básico de Streamlit.\")\n"
+      ],
+      "metadata": {
+        "id": "67mFcZ51827a"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install --upgrade pyngrok\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "L_3EWge3BJxu",
+        "outputId": "d6f846cb-af9b-4a4f-aa0a-261155bce846"
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Requirement already satisfied: pyngrok in /usr/local/lib/python3.10/dist-packages (7.2.1)\n",
+            "Requirement already satisfied: PyYAML>=5.1 in /usr/local/lib/python3.10/dist-packages (from pyngrok) (6.0.2)\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!streamlit run app.py & ./cloudflared tunnel --url http://localhost:8501\n",
+        "\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "p97TB_QSt6_4",
+        "outputId": "15d5e069-92fd-4377-ef19-443c50ace207"
+      },
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "\u001b[90m2024-12-01T07:13:01Z\u001b[0m \u001b[32mINF\u001b[0m Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps\n",
+            "\u001b[90m2024-12-01T07:13:01Z\u001b[0m \u001b[32mINF\u001b[0m Requesting new quick Tunnel on trycloudflare.com...\n",
+            "\n",
+            "Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.\n",
+            "\u001b[0m\n",
+            "\u001b[0m\n",
+            "\u001b[34m\u001b[1m  You can now view your Streamlit app in your browser.\u001b[0m\n",
+            "\u001b[0m\n",
+            "\u001b[34m  Local URL: \u001b[0m\u001b[1mhttp://localhost:8501\u001b[0m\n",
+            "\u001b[34m  Network URL: \u001b[0m\u001b[1mhttp://172.28.0.12:8501\u001b[0m\n",
+            "\u001b[34m  External URL: \u001b[0m\u001b[1mhttp://34.16.163.112:8501\u001b[0m\n",
+            "\u001b[0m\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m +--------------------------------------------------------------------------------------------+\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m |  https://stating-acer-stretch-soon.trycloudflare.com                                       |\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m +--------------------------------------------------------------------------------------------+\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Version 2024.11.1 (Checksum 55d789465955ccfffcd61ba72807a2a4495002f7d9b7cc5eadcaa1f93c279d25)\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m GOOS: linux, GOVersion: go1.22.5, GoArch: amd64\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Settings: map[ha-connections:1 protocol:quic url:http://localhost:8501]\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Generated Connector ID: 0bdbad95-66a3-487b-9e41-9d88e4073919\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m cloudflared will not automatically update when run from the shell. To enable auto-updates, run cloudflared as a service: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/run-tunnel/as-a-service/\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Initial protocol quic\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m ICMP proxy will use 172.28.0.12 as source for IPv4\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m ICMP proxy will use :: as source for IPv6\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Starting metrics server on 127.0.0.1:40661/metrics\n",
+            "2024/12/01 07:13:07 failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.\n",
+            "\u001b[90m2024-12-01T07:13:07Z\u001b[0m \u001b[32mINF\u001b[0m Registered tunnel connection \u001b[36mconnIndex=\u001b[0m0 \u001b[36mconnection=\u001b[0mecc5eeef-1067-425b-a0c4-3ea10105abb9 \u001b[36mevent=\u001b[0m0 \u001b[36mip=\u001b[0m198.41.200.193 \u001b[36mlocation=\u001b[0mlax06 \u001b[36mprotocol=\u001b[0mquic\n",
+            "\u001b[90m2024-12-01T07:13:16Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m  \u001b[31merror=\u001b[0m\u001b[31m\"stream 77 canceled by remote with error code 0\"\u001b[0m \u001b[36mconnIndex=\u001b[0m0 \u001b[36mevent=\u001b[0m1 \u001b[36mingressRule=\u001b[0m0 \u001b[36moriginService=\u001b[0mhttp://localhost:8501\n",
+            "\u001b[90m2024-12-01T07:13:16Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m Request failed \u001b[31merror=\u001b[0m\u001b[31m\"stream 77 canceled by remote with error code 0\"\u001b[0m \u001b[36mconnIndex=\u001b[0m0 \u001b[36mdest=\u001b[0mhttps://stating-acer-stretch-soon.trycloudflare.com/static/js/main.dbbac55a.js \u001b[36mevent=\u001b[0m0 \u001b[36mip=\u001b[0m198.41.200.193 \u001b[36mtype=\u001b[0mhttp\n",
+            "\u001b[90m2024-12-01T07:13:19Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m  \u001b[31merror=\u001b[0m\u001b[31m\"stream 65 canceled by remote with error code 0\"\u001b[0m \u001b[36mconnIndex=\u001b[0m0 \u001b[36mevent=\u001b[0m1 \u001b[36mingressRule=\u001b[0m0 \u001b[36moriginService=\u001b[0mhttp://localhost:8501\n",
+            "\u001b[90m2024-12-01T07:13:19Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m Request failed \u001b[31merror=\u001b[0m\u001b[31m\"stream 65 canceled by remote with error code 0\"\u001b[0m \u001b[36mconnIndex=\u001b[0m0 \u001b[36mdest=\u001b[0mhttps://stating-acer-stretch-soon.trycloudflare.com/static/js/main.dbbac55a.js \u001b[36mevent=\u001b[0m0 \u001b[36mip=\u001b[0m198.41.200.193 \u001b[36mtype=\u001b[0mhttp\n",
+            "2024-12-01 07:13:28.837 Serialization of dataframe to Arrow table was unsuccessful due to: (\"Could not convert '' with type str: tried to convert to double\", 'Conversion failed for column Precio de venta with type object'). Applying automatic fixes for column types to make the dataframe Arrow-compatible.\n",
+            "2024-12-01 07:13:28.875 Uncaught app exception\n",
+            "Traceback (most recent call last):\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/ops/array_ops.py\", line 218, in _na_arithmetic_op\n",
+            "    result = func(left, right)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py\", line 242, in evaluate\n",
+            "    return _evaluate(op, op_str, a, b)  # type: ignore[misc]\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py\", line 131, in _evaluate_numexpr\n",
+            "    result = _evaluate_standard(op, op_str, a, b)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/computation/expressions.py\", line 73, in _evaluate_standard\n",
+            "    return op(a, b)\n",
+            "TypeError: unsupported operand type(s) for -: 'int' and 'str'\n",
+            "\n",
+            "During handling of the above exception, another exception occurred:\n",
+            "\n",
+            "Traceback (most recent call last):\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/streamlit/runtime/scriptrunner/exec_code.py\", line 88, in exec_func_with_error_handling\n",
+            "    result = func()\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/streamlit/runtime/scriptrunner/script_runner.py\", line 579, in code_to_exec\n",
+            "    exec(code, module.__dict__)\n",
+            "  File \"/content/app.py\", line 28, in <module>\n",
+            "    df['Pedido recomendado'] = (df['Inventario minimo'] + df['inventario de seguridad'] - df['Existencia']).clip(lower=0)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/ops/common.py\", line 76, in new_method\n",
+            "    return method(self, other)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/arraylike.py\", line 194, in __sub__\n",
+            "    return self._arith_method(other, operator.sub)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/series.py\", line 6135, in _arith_method\n",
+            "    return base.IndexOpsMixin._arith_method(self, other, op)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/base.py\", line 1382, in _arith_method\n",
+            "    result = ops.arithmetic_op(lvalues, rvalues, op)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/ops/array_ops.py\", line 283, in arithmetic_op\n",
+            "    res_values = _na_arithmetic_op(left, right, op)  # type: ignore[arg-type]\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/ops/array_ops.py\", line 227, in _na_arithmetic_op\n",
+            "    result = _masked_arith_op(left, right, op)\n",
+            "  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/ops/array_ops.py\", line 163, in _masked_arith_op\n",
+            "    result[mask] = op(xrav[mask], yrav[mask])\n",
+            "TypeError: unsupported operand type(s) for -: 'int' and 'str'\n",
+            "\u001b[34m  Stopping...\u001b[0m\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[32mINF\u001b[0m Initiating graceful shutdown due to signal interrupt ...\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m Failed to serve tunnel connection \u001b[31merror=\u001b[0m\u001b[31m\"context canceled\"\u001b[0m \u001b[36mconnIndex=\u001b[0m0 \u001b[36mevent=\u001b[0m0 \u001b[36mip=\u001b[0m198.41.200.193\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[32mINF\u001b[0m Retrying connection in up to 1s \u001b[36mconnIndex=\u001b[0m0 \u001b[36mevent=\u001b[0m0 \u001b[36mip=\u001b[0m198.41.200.193\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[1m\u001b[31mERR\u001b[0m\u001b[0m no more connections active and exiting\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[32mINF\u001b[0m Tunnel server stopped\n",
+            "\u001b[90m2024-12-01T07:35:39Z\u001b[0m \u001b[32mINF\u001b[0m Metrics server stopped\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "with open(\"requirements.txt\", \"w\") as f:\n",
+        "    f.write(\"\"\"streamlit\n",
+        "gspread\n",
+        "pandas\n",
+        "matplotlib\n",
+        "openpyxl\n",
+        "google-auth\n",
+        "google-auth-oauthlib\n",
+        "google-auth-httplib2\n",
+        "\"\"\")\n"
+      ],
+      "metadata": {
+        "id": "MFwZOV8hE_AM"
+      },
+      "execution_count": 23,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from google.colab import files\n",
+        "files.download(\"requirements.txt\")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 17
+        },
+        "id": "qS868B0MF-rN",
+        "outputId": "c7f74b84-5449-4cd9-c3a1-25cbcd776723"
+      },
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.Javascript object>"
+            ],
+            "application/javascript": [
+              "\n",
+              "    async function download(id, filename, size) {\n",
+              "      if (!google.colab.kernel.accessAllowed) {\n",
+              "        return;\n",
+              "      }\n",
+              "      const div = document.createElement('div');\n",
+              "      const label = document.createElement('label');\n",
+              "      label.textContent = `Downloading \"${filename}\": `;\n",
+              "      div.appendChild(label);\n",
+              "      const progress = document.createElement('progress');\n",
+              "      progress.max = size;\n",
+              "      div.appendChild(progress);\n",
+              "      document.body.appendChild(div);\n",
+              "\n",
+              "      const buffers = [];\n",
+              "      let downloaded = 0;\n",
+              "\n",
+              "      const channel = await google.colab.kernel.comms.open(id);\n",
+              "      // Send a message to notify the kernel that we're ready.\n",
+              "      channel.send({})\n",
+              "\n",
+              "      for await (const message of channel.messages) {\n",
+              "        // Send a message to notify the kernel that we're ready.\n",
+              "        channel.send({})\n",
+              "        if (message.buffers) {\n",
+              "          for (const buffer of message.buffers) {\n",
+              "            buffers.push(buffer);\n",
+              "            downloaded += buffer.byteLength;\n",
+              "            progress.value = downloaded;\n",
+              "          }\n",
+              "        }\n",
+              "      }\n",
+              "      const blob = new Blob(buffers, {type: 'application/binary'});\n",
+              "      const a = document.createElement('a');\n",
+              "      a.href = window.URL.createObjectURL(blob);\n",
+              "      a.download = filename;\n",
+              "      div.appendChild(a);\n",
+              "      a.click();\n",
+              "      div.remove();\n",
+              "    }\n",
+              "  "
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<IPython.core.display.Javascript object>"
+            ],
+            "application/javascript": [
+              "download(\"download_3b21674a-d118-47da-90b8-39e88a6f92ce\", \"requirements.txt\", 99)"
+            ]
+          },
+          "metadata": {}
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install streamlit pyngrok gspread pandas gspread-dataframe openpyxl matplotlib\n",
+        "!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared\n",
+        "!chmod +x cloudflared\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "85o8vFYJ-CSu",
+        "outputId": "423d5d15-909e-4f94-c158-f0104710032b"
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Requirement already satisfied: streamlit in /usr/local/lib/python3.10/dist-packages (1.40.2)\n",
+            "Requirement already satisfied: pyngrok in /usr/local/lib/python3.10/dist-packages (7.2.1)\n",
+            "Requirement already satisfied: gspread in /usr/local/lib/python3.10/dist-packages (6.0.2)\n",
+            "Requirement already satisfied: pandas in /usr/local/lib/python3.10/dist-packages (2.2.2)\n",
+            "Requirement already satisfied: gspread-dataframe in /usr/local/lib/python3.10/dist-packages (3.3.1)\n",
+            "Requirement already satisfied: openpyxl in /usr/local/lib/python3.10/dist-packages (3.1.5)\n",
+            "Requirement already satisfied: matplotlib in /usr/local/lib/python3.10/dist-packages (3.8.0)\n",
+            "Requirement already satisfied: altair<6,>=4.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (4.2.2)\n",
+            "Requirement already satisfied: blinker<2,>=1.0.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (1.9.0)\n",
+            "Requirement already satisfied: cachetools<6,>=4.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (5.5.0)\n",
+            "Requirement already satisfied: click<9,>=7.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (8.1.7)\n",
+            "Requirement already satisfied: numpy<3,>=1.23 in /usr/local/lib/python3.10/dist-packages (from streamlit) (1.26.4)\n",
+            "Requirement already satisfied: packaging<25,>=20 in /usr/local/lib/python3.10/dist-packages (from streamlit) (24.2)\n",
+            "Requirement already satisfied: pillow<12,>=7.1.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (11.0.0)\n",
+            "Requirement already satisfied: protobuf<6,>=3.20 in /usr/local/lib/python3.10/dist-packages (from streamlit) (4.25.5)\n",
+            "Requirement already satisfied: pyarrow>=7.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (17.0.0)\n",
+            "Requirement already satisfied: requests<3,>=2.27 in /usr/local/lib/python3.10/dist-packages (from streamlit) (2.32.3)\n",
+            "Requirement already satisfied: rich<14,>=10.14.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (13.9.4)\n",
+            "Requirement already satisfied: tenacity<10,>=8.1.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (9.0.0)\n",
+            "Requirement already satisfied: toml<2,>=0.10.1 in /usr/local/lib/python3.10/dist-packages (from streamlit) (0.10.2)\n",
+            "Requirement already satisfied: typing-extensions<5,>=4.3.0 in /usr/local/lib/python3.10/dist-packages (from streamlit) (4.12.2)\n",
+            "Requirement already satisfied: watchdog<7,>=2.1.5 in /usr/local/lib/python3.10/dist-packages (from streamlit) (6.0.0)\n",
+            "Requirement already satisfied: gitpython!=3.1.19,<4,>=3.0.7 in /usr/local/lib/python3.10/dist-packages (from streamlit) (3.1.43)\n",
+            "Requirement already satisfied: pydeck<1,>=0.8.0b4 in /usr/local/lib/python3.10/dist-packages (from streamlit) (0.9.1)\n",
+            "Requirement already satisfied: tornado<7,>=6.0.3 in /usr/local/lib/python3.10/dist-packages (from streamlit) (6.3.3)\n",
+            "Requirement already satisfied: PyYAML>=5.1 in /usr/local/lib/python3.10/dist-packages (from pyngrok) (6.0.2)\n",
+            "Requirement already satisfied: google-auth>=1.12.0 in /usr/local/lib/python3.10/dist-packages (from gspread) (2.27.0)\n",
+            "Requirement already satisfied: google-auth-oauthlib>=0.4.1 in /usr/local/lib/python3.10/dist-packages (from gspread) (1.2.1)\n",
+            "Requirement already satisfied: StrEnum==0.4.15 in /usr/local/lib/python3.10/dist-packages (from gspread) (0.4.15)\n",
+            "Requirement already satisfied: python-dateutil>=2.8.2 in /usr/local/lib/python3.10/dist-packages (from pandas) (2.8.2)\n",
+            "Requirement already satisfied: pytz>=2020.1 in /usr/local/lib/python3.10/dist-packages (from pandas) (2024.2)\n",
+            "Requirement already satisfied: tzdata>=2022.7 in /usr/local/lib/python3.10/dist-packages (from pandas) (2024.2)\n",
+            "Requirement already satisfied: six>=1.12.0 in /usr/local/lib/python3.10/dist-packages (from gspread-dataframe) (1.16.0)\n",
+            "Requirement already satisfied: et-xmlfile in /usr/local/lib/python3.10/dist-packages (from openpyxl) (2.0.0)\n",
+            "Requirement already satisfied: contourpy>=1.0.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (1.3.1)\n",
+            "Requirement already satisfied: cycler>=0.10 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (0.12.1)\n",
+            "Requirement already satisfied: fonttools>=4.22.0 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (4.55.0)\n",
+            "Requirement already satisfied: kiwisolver>=1.0.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (1.4.7)\n",
+            "Requirement already satisfied: pyparsing>=2.3.1 in /usr/local/lib/python3.10/dist-packages (from matplotlib) (3.2.0)\n",
+            "Requirement already satisfied: entrypoints in /usr/local/lib/python3.10/dist-packages (from altair<6,>=4.0->streamlit) (0.4)\n",
+            "Requirement already satisfied: jinja2 in /usr/local/lib/python3.10/dist-packages (from altair<6,>=4.0->streamlit) (3.1.4)\n",
+            "Requirement already satisfied: jsonschema>=3.0 in /usr/local/lib/python3.10/dist-packages (from altair<6,>=4.0->streamlit) (4.23.0)\n",
+            "Requirement already satisfied: toolz in /usr/local/lib/python3.10/dist-packages (from altair<6,>=4.0->streamlit) (0.12.1)\n",
+            "Requirement already satisfied: gitdb<5,>=4.0.1 in /usr/local/lib/python3.10/dist-packages (from gitpython!=3.1.19,<4,>=3.0.7->streamlit) (4.0.11)\n",
+            "Requirement already satisfied: pyasn1-modules>=0.2.1 in /usr/local/lib/python3.10/dist-packages (from google-auth>=1.12.0->gspread) (0.4.1)\n",
+            "Requirement already satisfied: rsa<5,>=3.1.4 in /usr/local/lib/python3.10/dist-packages (from google-auth>=1.12.0->gspread) (4.9)\n",
+            "Requirement already satisfied: requests-oauthlib>=0.7.0 in /usr/local/lib/python3.10/dist-packages (from google-auth-oauthlib>=0.4.1->gspread) (1.3.1)\n",
+            "Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.10/dist-packages (from requests<3,>=2.27->streamlit) (3.4.0)\n",
+            "Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/dist-packages (from requests<3,>=2.27->streamlit) (3.10)\n",
+            "Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.10/dist-packages (from requests<3,>=2.27->streamlit) (2.2.3)\n",
+            "Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.10/dist-packages (from requests<3,>=2.27->streamlit) (2024.8.30)\n",
+            "Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/local/lib/python3.10/dist-packages (from rich<14,>=10.14.0->streamlit) (3.0.0)\n",
+            "Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.10/dist-packages (from rich<14,>=10.14.0->streamlit) (2.18.0)\n",
+            "Requirement already satisfied: smmap<6,>=3.0.1 in /usr/local/lib/python3.10/dist-packages (from gitdb<5,>=4.0.1->gitpython!=3.1.19,<4,>=3.0.7->streamlit) (5.0.1)\n",
+            "Requirement already satisfied: MarkupSafe>=2.0 in /usr/local/lib/python3.10/dist-packages (from jinja2->altair<6,>=4.0->streamlit) (3.0.2)\n",
+            "Requirement already satisfied: attrs>=22.2.0 in /usr/local/lib/python3.10/dist-packages (from jsonschema>=3.0->altair<6,>=4.0->streamlit) (24.2.0)\n",
+            "Requirement already satisfied: jsonschema-specifications>=2023.03.6 in /usr/local/lib/python3.10/dist-packages (from jsonschema>=3.0->altair<6,>=4.0->streamlit) (2024.10.1)\n",
+            "Requirement already satisfied: referencing>=0.28.4 in /usr/local/lib/python3.10/dist-packages (from jsonschema>=3.0->altair<6,>=4.0->streamlit) (0.35.1)\n",
+            "Requirement already satisfied: rpds-py>=0.7.1 in /usr/local/lib/python3.10/dist-packages (from jsonschema>=3.0->altair<6,>=4.0->streamlit) (0.21.0)\n",
+            "Requirement already satisfied: mdurl~=0.1 in /usr/local/lib/python3.10/dist-packages (from markdown-it-py>=2.2.0->rich<14,>=10.14.0->streamlit) (0.1.2)\n",
+            "Requirement already satisfied: pyasn1<0.7.0,>=0.4.6 in /usr/local/lib/python3.10/dist-packages (from pyasn1-modules>=0.2.1->google-auth>=1.12.0->gspread) (0.6.1)\n",
+            "Requirement already satisfied: oauthlib>=3.0.0 in /usr/local/lib/python3.10/dist-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=0.4.1->gspread) (3.2.2)\n"
+          ]
+        }
+      ]
+    }
+  ]
+}
