@@ -207,7 +207,7 @@ for columna in columnas_numericas:
     )
     df[columna] = pd.to_numeric(df[columna], errors='coerce').fillna(0)  # Convertir a número
 
-!pip install streamlit pyngrok
+
 
 import streamlit as st
 
