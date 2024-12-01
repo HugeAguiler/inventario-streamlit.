@@ -239,6 +239,6 @@ google-auth-httplib2
 from google.colab import files
 files.download("requirements.txt")
 
-!pip install streamlit pyngrok gspread pandas gspread-dataframe openpyxl matplotlib
+
 !wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
 !chmod +x cloudflared
