@@ -71,7 +71,7 @@
       "cell_type": "code",
       "source": [
         "# Instalación de las bibliotecas necesarias\n",
-        "!pip install gspread pandas gspread-dataframe openpyxl matplotlib\n",
+      
         "\n",
         "import gspread\n",
         "from google.colab import auth\n",
